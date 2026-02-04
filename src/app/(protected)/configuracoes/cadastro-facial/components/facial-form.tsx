@@ -147,104 +147,108 @@ export function FacialForm({
   const showTrigger = controlledOpen === undefined;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {showTrigger && (
-        <DialogTrigger asChild>
-          {trigger ?? <Button>Cadastrar facial</Button>}
-        </DialogTrigger>
-      )}
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? "Editar Foto Facial" : "Cadastrar Foto Facial"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditMode
-              ? "Altere a URL da foto facial do funcionário"
-              : "Selecione o funcionário e informe a URL da foto facial"}
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="employeeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Funcionário</FormLabel>
-                  <Select
-                    value={field.value || undefined}
-                    onValueChange={field.onChange}
-                    disabled={isEditMode}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o funcionário..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="z-[100]" position="popper">
-                      {employees.length === 0 ? (
-                        <div className="py-4 text-center text-sm text-slate-500">
-                          Carregando...
-                        </div>
-                      ) : (
-                        employees.map((emp) => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.nome}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="fotoFacialUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>URL da foto facial</FormLabel>
-                  <div className="flex gap-2">
-                    <FormControl>
-                      <Input
-                        type="url"
-                        placeholder="https://... ou use a câmera"
-                        className="flex-1"
-                        {...field}
-                      />
-                    </FormControl>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      title="Coletar pela câmera"
-                      onClick={() => setCameraDialogOpen(true)}
-                      className="shrink-0"
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        {showTrigger && (
+          <DialogTrigger asChild>
+            {trigger ?? <Button>Cadastrar facial</Button>}
+          </DialogTrigger>
+        )}
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? "Editar Foto Facial" : "Cadastrar Foto Facial"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode
+                ? "Altere a URL da foto facial do funcionário"
+                : "Selecione o funcionário e informe a URL da foto facial"}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="employeeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Funcionário</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                      disabled={isEditMode}
                     >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o funcionário..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="z-[100]" position="popper">
+                        {employees.length === 0 ? (
+                          <div className="py-4 text-center text-sm text-slate-500">
+                            Carregando...
+                          </div>
+                        ) : (
+                          employees.map((emp) => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.nome}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="fotoFacialUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da foto facial</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          type="url"
+                          placeholder="https://... ou use a câmera"
+                          className="flex-1"
+                          {...field}
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        title="Coletar pela câmera"
+                        onClick={() => setCameraDialogOpen(true)}
+                        className="shrink-0"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+        {/* Renderizar CameraCaptureDialog fora do Dialog principal para evitar problemas de contexto */}
+      </Dialog>
+      {/* CameraCaptureDialog renderizado fora do Dialog principal */}
       <CameraCaptureDialog
         open={cameraDialogOpen}
         onOpenChange={setCameraDialogOpen}
@@ -253,6 +257,6 @@ export function FacialForm({
           setCameraDialogOpen(false);
         }}
       />
-    </Dialog>
+    </>
   );
 }

@@ -55,89 +55,179 @@ export function CameraCaptureDialog({
     setError(null);
     setIsLoading(true);
     let s: MediaStream | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let isCancelled = false;
 
     const constraints = [{ video: { facingMode: "user" } }, { video: true }];
 
-    const tryGetUserMedia = async () => {
-      // Verificar se está no cliente e se getUserMedia está disponível
-      if (
-        typeof window === "undefined" ||
-        typeof navigator === "undefined" ||
-        !navigator.mediaDevices ||
-        typeof navigator.mediaDevices.getUserMedia !== "function"
-      ) {
-        const msg =
-          "getUserMedia não está disponível. Use um navegador moderno e certifique-se de estar em HTTPS ou localhost.";
-        setError(msg);
-        toast.error(msg);
-        setIsLoading(false);
-        return;
-      }
+    // Aguardar um pouco para garantir que o diálogo está totalmente renderizado
+    const initDelay = setTimeout(() => {
+      const tryGetUserMedia = async () => {
+        console.log("[CameraCaptureDialog] Tentando acessar câmera...");
 
-      for (const constraint of constraints) {
-        try {
-          const mediaStream =
-            await navigator.mediaDevices.getUserMedia(constraint);
-          s = mediaStream;
-          streamRef.current = mediaStream;
-          setStream(mediaStream);
-
-          if (videoRef.current) {
-            const video = videoRef.current;
-            video.srcObject = mediaStream;
-
-            const handleLoadedMetadata = () => {
-              video.play().catch((playErr) => {
-                console.error("Erro ao reproduzir vídeo:", playErr);
-              });
-            };
-
-            video.addEventListener("loadedmetadata", handleLoadedMetadata, {
-              once: true,
-            });
-
-            // Tentar play imediatamente também
-            try {
-              await video.play();
-            } catch (playErr) {
-              // Se falhar, o loadedmetadata vai tentar novamente
-              console.log("Aguardando metadata do vídeo...");
-            }
-          }
+        // Verificar se está no cliente e se getUserMedia está disponível
+        if (
+          typeof window === "undefined" ||
+          typeof navigator === "undefined" ||
+          !navigator.mediaDevices ||
+          typeof navigator.mediaDevices.getUserMedia !== "function"
+        ) {
+          const msg =
+            "getUserMedia não está disponível. Use um navegador moderno e certifique-se de estar em HTTPS ou localhost.";
+          console.error("[CameraCaptureDialog] getUserMedia não disponível");
+          setError(msg);
+          toast.error(msg);
           setIsLoading(false);
           return;
-        } catch (err: any) {
-          if (
-            err?.name === "NotAllowedError" ||
-            err?.name === "PermissionDeniedError"
-          ) {
-            const msg = "Permissão de câmera negada.";
+        }
+
+        console.log(
+          "[CameraCaptureDialog] getUserMedia disponível, tentando acessar...",
+        );
+
+        // Timeout de 10 segundos
+        timeoutId = setTimeout(() => {
+          if (!s && !isCancelled) {
+            const msg = "Tempo de espera esgotado ao acessar a câmera.";
             setError(msg);
             toast.error(msg);
             setIsLoading(false);
-            return;
           }
-          continue;
+        }, 10000);
+
+        for (const constraint of constraints) {
+          if (isCancelled) break;
+
+          try {
+            console.log(
+              "[CameraCaptureDialog] Chamando getUserMedia com constraint:",
+              constraint,
+            );
+            const mediaStream =
+              await navigator.mediaDevices.getUserMedia(constraint);
+
+            console.log("[CameraCaptureDialog] Stream obtido com sucesso!");
+
+            if (isCancelled) {
+              console.log(
+                "[CameraCaptureDialog] Operação cancelada, parando stream",
+              );
+              mediaStream.getTracks().forEach((t) => t.stop());
+              return;
+            }
+
+            if (timeoutId) clearTimeout(timeoutId);
+
+            s = mediaStream;
+            streamRef.current = mediaStream;
+            setStream(mediaStream);
+
+            if (videoRef.current) {
+              const video = videoRef.current;
+              video.srcObject = mediaStream;
+
+              const handleLoadedMetadata = () => {
+                if (isCancelled) return;
+                video.play().catch((playErr) => {
+                  console.error("Erro ao reproduzir vídeo:", playErr);
+                  if (!isCancelled) {
+                    setError("Erro ao reproduzir vídeo da câmera.");
+                    setIsLoading(false);
+                  }
+                });
+              };
+
+              const handleCanPlay = () => {
+                if (isCancelled) return;
+                setIsLoading(false);
+              };
+
+              video.addEventListener("loadedmetadata", handleLoadedMetadata, {
+                once: true,
+              });
+
+              video.addEventListener("canplay", handleCanPlay, {
+                once: true,
+              });
+
+              // Tentar play imediatamente também
+              try {
+                await video.play();
+                if (!isCancelled) {
+                  setIsLoading(false);
+                }
+              } catch (playErr) {
+                // Se falhar, o loadedmetadata vai tentar novamente
+                console.log("Aguardando metadata do vídeo...");
+              }
+            } else {
+              setIsLoading(false);
+            }
+            return;
+          } catch (err: any) {
+            console.error("[CameraCaptureDialog] Erro ao acessar câmera:", err);
+
+            if (isCancelled) return;
+
+            if (
+              err?.name === "NotAllowedError" ||
+              err?.name === "PermissionDeniedError"
+            ) {
+              if (timeoutId) clearTimeout(timeoutId);
+              const msg = "Permissão de câmera negada.";
+              setError(msg);
+              toast.error(msg);
+              setIsLoading(false);
+              return;
+            }
+
+            if (
+              err?.name === "NotFoundError" ||
+              err?.name === "DevicesNotFoundError"
+            ) {
+              if (timeoutId) clearTimeout(timeoutId);
+              const msg = "Nenhuma câmera encontrada.";
+              setError(msg);
+              toast.error(msg);
+              setIsLoading(false);
+              return;
+            }
+
+            // Continuar tentando próximo constraint
+            console.log("[CameraCaptureDialog] Tentando próximo constraint...");
+            continue;
+          }
         }
-      }
 
-      const msg = "Não foi possível acessar a câmera.";
-      setError(msg);
-      toast.error(msg);
-      setIsLoading(false);
-    };
+        if (!isCancelled) {
+          if (timeoutId) clearTimeout(timeoutId);
+          const msg = "Não foi possível acessar a câmera.";
+          setError(msg);
+          toast.error(msg);
+          setIsLoading(false);
+        }
+      };
 
-    tryGetUserMedia();
+      tryGetUserMedia();
+    }, 100); // Pequeno delay para garantir que o diálogo está renderizado
 
     return () => {
+      isCancelled = true;
+      clearTimeout(initDelay);
+      if (timeoutId) clearTimeout(timeoutId);
       if (s) {
         s.getTracks().forEach((t) => t.stop());
       }
-      streamRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
       setStream(null);
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
+      setIsLoading(false);
+      setError(null);
     };
   }, [open, isMounted]);
 
