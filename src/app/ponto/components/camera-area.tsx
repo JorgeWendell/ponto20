@@ -268,14 +268,30 @@ export function CameraArea() {
           `Ponto registrado: ${result.data.colaborador.nomeCompleto} - ${tipoLabels[result.data.tipo] ?? result.data.tipo}`,
           { duration: 5000 },
         );
+        setError(null); // Limpar erro em caso de sucesso
       } else {
-        toast.error(result.error ?? "Erro ao reconhecer.");
-        setError(result.error ?? "Erro ao reconhecer.");
+        const errorMsg = result.error ?? "Erro ao reconhecer.";
+        toast.error(errorMsg);
+        // Não definir erro de conexão como erro de câmera
+        if (!errorMsg.includes("câmera") && !errorMsg.includes("Câmera")) {
+          setError(null); // Limpar erro de câmera se for erro de serviço
+        } else {
+          setError(errorMsg);
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao processar.";
       toast.error(msg);
-      setError(msg);
+      // Não definir erro de conexão como erro de câmera
+      if (
+        !msg.includes("câmera") &&
+        !msg.includes("Câmera") &&
+        !msg.includes("Fetch")
+      ) {
+        setError(null); // Limpar erro de câmera se for erro de serviço
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsRecognizing(false);
     }
@@ -316,7 +332,12 @@ export function CameraArea() {
       {error && (
         <Alert variant="destructive" className="max-w-md">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erro ao acessar câmera</AlertTitle>
+          <AlertTitle>
+            {error.includes("Serviço de reconhecimento") ||
+            error.includes("não está disponível")
+              ? "Erro no serviço"
+              : "Erro ao acessar câmera"}
+          </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

@@ -43,20 +43,75 @@ export async function recognizeFace(input: unknown) {
       foto_url: e.fotoFacialUrl!,
     }));
 
-    const response = await fetch(
-      `${FACE_RECOGNITION_API_URL}/recognize-with-collaborators`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image_base64: validated.imageBase64,
-          latitude: validated.latitude,
-          longitude: validated.longitude,
-          dispositivo_info: validated.dispositivoInfo,
-          colaboradores: colaboradoresData,
-        }),
-      },
-    );
+    let response: Response;
+    let timeoutId: NodeJS.Timeout | null = null;
+    try {
+      // Criar AbortController para timeout
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+
+      response = await fetch(
+        `${FACE_RECOGNITION_API_URL}/recognize-with-collaborators`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_base64: validated.imageBase64,
+            latitude: validated.latitude,
+            longitude: validated.longitude,
+            dispositivo_info: validated.dispositivoInfo,
+            colaboradores: colaboradoresData,
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      if (timeoutId) clearTimeout(timeoutId);
+    } catch (fetchError) {
+      if (timeoutId) clearTimeout(timeoutId);
+      const errorMessage =
+        fetchError instanceof Error ? fetchError.message : String(fetchError);
+      const errorName = fetchError instanceof Error ? fetchError.name : "";
+
+      // Verificar se é erro de abort/timeout
+      if (
+        errorName === "AbortError" ||
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("timeout")
+      ) {
+        return {
+          success: false,
+          error:
+            "Tempo de espera esgotado ao conectar com o serviço de reconhecimento facial.",
+          data: null,
+        };
+      }
+
+      // Verificar se é erro de conexão
+      if (
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("fetch failed") ||
+        errorMessage.includes("NetworkError") ||
+        errorMessage.includes("ERR_CONNECTION_REFUSED") ||
+        errorMessage.includes("ECONNREFUSED") ||
+        errorMessage.includes("ECONNRESET") ||
+        errorMessage.includes("ENOTFOUND") ||
+        errorMessage.includes("getaddrinfo ENOTFOUND")
+      ) {
+        return {
+          success: false,
+          error: `Serviço de reconhecimento facial não está disponível em ${FACE_RECOGNITION_API_URL}. Verifique se o serviço está rodando e acessível.`,
+          data: null,
+        };
+      }
+
+      // Outros erros de fetch
+      return {
+        success: false,
+        error: `Erro ao conectar com o serviço de reconhecimento facial: ${errorMessage}`,
+        data: null,
+      };
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -113,6 +168,25 @@ export async function recognizeFace(input: unknown) {
       err instanceof Error
         ? err.message
         : "Erro ao processar reconhecimento facial";
+
+    // Verificar se é erro de conexão no catch geral também
+    if (
+      message.includes("Failed to fetch") ||
+      message.includes("fetch failed") ||
+      message.includes("NetworkError") ||
+      message.includes("ERR_CONNECTION_REFUSED") ||
+      message.includes("ECONNREFUSED") ||
+      message.includes("ECONNRESET") ||
+      message.includes("ENOTFOUND") ||
+      message.includes("getaddrinfo ENOTFOUND")
+    ) {
+      return {
+        success: false,
+        error: `Serviço de reconhecimento facial não está disponível em ${FACE_RECOGNITION_API_URL}. Verifique se o serviço está rodando e acessível.`,
+        data: null,
+      };
+    }
+
     return {
       success: false,
       error: message,

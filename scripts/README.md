@@ -82,6 +82,26 @@ sudo ./scripts/setup-https.sh
 
 **Nota:** O script usa o email `jorge.wendell@outlook.com` para notificações do Let's Encrypt. Para alterar, edite a variável `EMAIL` no início do script.
 
+### 4. setup-face-recognition.sh
+
+Script para instalar e configurar o serviço de reconhecimento facial:
+
+- Instala Python 3 e dependências
+- Clona o repositório do serviço de reconhecimento facial
+- Cria ambiente virtual Python
+- Instala dependências (OpenCV ou face_recognition)
+- Configura PM2 para gerenciar o serviço
+- Inicia o serviço na porta 8000 (porta esperada pelo ponto20)
+
+**Uso:**
+
+```bash
+chmod +x scripts/setup-face-recognition.sh
+sudo ./scripts/setup-face-recognition.sh
+```
+
+**Nota:** Após executar, edite o arquivo `.env` do serviço (`/var/www/face-recognition-service/.env`) com suas credenciais do Nextcloud e reinicie: `pm2 restart face-recognition-service`
+
 ## Configuração do .env
 
 O script `deploy.sh` cria automaticamente o arquivo `.env` com as seguintes configurações:
@@ -111,8 +131,33 @@ O script `deploy.sh` já executa automaticamente:
 **Ações manuais necessárias:**
 
 1. **Configurar Serviço de Reconhecimento Facial:**
+
+   **Opção A: Script automatizado (recomendado)**
+
+   ```bash
+   chmod +x scripts/setup-face-recognition.sh
+   sudo ./scripts/setup-face-recognition.sh
+   ```
+
+   **Opção B: Manual**
    - Certifique-se de que o serviço está rodando na porta 8000
-   - Ajuste `FACE_RECOGNITION_API_URL` no `.env` se necessário
+   - Se o serviço estiver no mesmo servidor, use `http://localhost:8000`
+   - Se o serviço estiver em outro servidor, use a URL completa (ex: `http://192.168.15.47:8000`)
+   - Ajuste `FACE_RECOGNITION_API_URL` no `.env` conforme necessário
+   - Reinicie a aplicação após alterar: `pm2 restart ponto20`
+
+   **Verificar se o serviço está rodando:**
+
+   ```bash
+   # Verificar porta 8000
+   curl http://localhost:8000/docs
+
+   # Verificar PM2
+   pm2 list | grep face-recognition
+
+   # Ver logs
+   pm2 logs face-recognition-service
+   ```
 
 2. **Ajustar Variáveis de Ambiente (se necessário):**
    - Edite `/var/www/ponto20/.env` conforme necessário
