@@ -37,16 +37,16 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Atualizar sistema
-echo -e "${YELLOW}[1/12] Atualizando sistema...${NC}"
+echo -e "${YELLOW}[1/17] Atualizando sistema...${NC}"
 apt-get update -qq
 
 # Instalar dependências básicas
-echo -e "${YELLOW}[2/12] Instalando dependências básicas...${NC}"
+echo -e "${YELLOW}[2/17] Instalando dependências básicas...${NC}"
 apt-get install -y curl wget git build-essential
 
 # Instalar PostgreSQL (se não estiver instalado)
 if ! command_exists psql; then
-    echo -e "${YELLOW}[3/12] Instalando PostgreSQL...${NC}"
+    echo -e "${YELLOW}[3/17] Instalando PostgreSQL...${NC}"
     apt-get install -y postgresql postgresql-contrib
     
     # Iniciar e habilitar PostgreSQL
@@ -55,16 +55,16 @@ if ! command_exists psql; then
     
     echo -e "${GREEN}PostgreSQL instalado e iniciado${NC}"
 else
-    echo -e "${GREEN}[3/12] PostgreSQL já está instalado${NC}"
+    echo -e "${GREEN}[3/17] PostgreSQL já está instalado${NC}"
     systemctl start postgresql || true
 fi
 
 # Configurar senha do usuário postgres
-echo -e "${YELLOW}[4/12] Configurando PostgreSQL...${NC}"
+echo -e "${YELLOW}[4/17] Configurando PostgreSQL...${NC}"
 sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';" 2>/dev/null || true
 
 # Criar banco de dados se não existir
-echo -e "${YELLOW}[5/12] Criando banco de dados ${DB_NAME}...${NC}"
+echo -e "${YELLOW}[5/17] Criando banco de dados ${DB_NAME}...${NC}"
 DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null || echo "")
 if [ "$DB_EXISTS" != "1" ]; then
     sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};" 2>/dev/null
@@ -74,7 +74,7 @@ else
 fi
 
 # Configurar pg_hba.conf para aceitar conexões locais com senha
-echo -e "${YELLOW}[6/12] Configurando acesso ao PostgreSQL...${NC}"
+echo -e "${YELLOW}[6/17] Configurando acesso ao PostgreSQL...${NC}"
 PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | head -n 1)
 if [ -n "$PG_VERSION" ]; then
     PG_HBA="/etc/postgresql/${PG_VERSION}/main/pg_hba.conf"
@@ -118,45 +118,50 @@ fi
 
 # Instalar Node.js via NodeSource (se não estiver instalado)
 if ! command_exists node; then
-    echo -e "${YELLOW}[7/12] Instalando Node.js ${NODE_VERSION}...${NC}"
+    echo -e "${YELLOW}[7/17] Instalando Node.js ${NODE_VERSION}...${NC}"
     curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
     apt-get install -y nodejs
 else
-    echo -e "${GREEN}[7/12] Node.js já está instalado: $(node --version)${NC}"
+    echo -e "${GREEN}[7/17] Node.js já está instalado: $(node --version)${NC}"
 fi
 
 # Verificar versões instaladas
 echo -e "${GREEN}Node.js: $(node --version)${NC}"
 echo -e "${GREEN}npm: $(npm --version)${NC}"
 
+# Atualizar npm para a última versão
+echo -e "${YELLOW}[8/17] Atualizando npm para a última versão...${NC}"
+npm install -g npm@latest
+echo -e "${GREEN}npm atualizado: $(npm --version)${NC}"
+
 # Instalar PM2 globalmente (se não estiver instalado)
 if ! command_exists pm2; then
-    echo -e "${YELLOW}[8/12] Instalando PM2...${NC}"
+    echo -e "${YELLOW}[9/17] Instalando PM2...${NC}"
     npm install -g pm2
 else
-    echo -e "${GREEN}[8/12] PM2 já está instalado${NC}"
+    echo -e "${GREEN}[9/17] PM2 já está instalado${NC}"
 fi
 
 # Criar diretório da aplicação
-echo -e "${YELLOW}[9/12] Criando diretório da aplicação...${NC}"
+echo -e "${YELLOW}[10/17] Criando diretório da aplicação...${NC}"
 mkdir -p "$APP_DIR"
 cd "$APP_DIR"
 
 # Clonar ou atualizar repositório
 if [ -d ".git" ]; then
-    echo -e "${YELLOW}[10/12] Atualizando repositório...${NC}"
+    echo -e "${YELLOW}[11/17] Atualizando repositório...${NC}"
     git pull origin main || git pull origin master
 else
-    echo -e "${YELLOW}[10/12] Clonando repositório...${NC}"
+    echo -e "${YELLOW}[11/17] Clonando repositório...${NC}"
     git clone "$REPO_URL" .
 fi
 
 # Instalar dependências
-echo -e "${YELLOW}[11/12] Instalando dependências npm...${NC}"
+echo -e "${YELLOW}[12/17] Instalando dependências npm...${NC}"
 npm ci --production=false
 
 # Criar arquivo .env
-echo -e "${YELLOW}[12/16] Configurando arquivo .env...${NC}"
+echo -e "${YELLOW}[13/17] Configurando arquivo .env...${NC}"
 
 # Determinar URL base (usar DOMAIN se não for localhost ou IP, senão usar localhost:3000)
 if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "localhost" ] && ! echo "$DOMAIN" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
@@ -185,15 +190,15 @@ echo -e "${GREEN}Arquivo .env criado com sucesso${NC}"
 echo -e "${YELLOW}IMPORTANTE: Verifique e ajuste as variáveis de ambiente conforme necessário${NC}"
 
 # Executar migrações do banco de dados
-echo -e "${YELLOW}[13/16] Executando migrações do banco de dados...${NC}"
+echo -e "${YELLOW}[14/17] Executando migrações do banco de dados...${NC}"
 npx drizzle-kit push || echo -e "${YELLOW}AVISO: Migrações podem ter falhado. Verifique manualmente.${NC}"
 
 # Executar build
-echo -e "${YELLOW}[14/16] Executando build da aplicação...${NC}"
+echo -e "${YELLOW}[15/17] Executando build da aplicação...${NC}"
 npm run build
 
 # Configurar PM2
-echo -e "${YELLOW}[15/16] Configurando PM2...${NC}"
+echo -e "${YELLOW}[16/17] Configurando PM2...${NC}"
 
 # Parar instância anterior se existir
 pm2 delete "$APP_NAME" 2>/dev/null || true
@@ -206,7 +211,7 @@ pm2 save
 pm2 startup systemd -u root --hp /root
 
 # Configurar Nginx como proxy reverso
-echo -e "${YELLOW}[16/16] Configurando Nginx como proxy reverso...${NC}"
+echo -e "${YELLOW}[17/17] Configurando Nginx como proxy reverso...${NC}"
 
 # Detectar IP do servidor se DOMAIN não estiver definido
 if [ -z "$DOMAIN" ]; then
