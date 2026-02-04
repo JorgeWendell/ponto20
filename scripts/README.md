@@ -1,0 +1,171 @@
+# Scripts de Deploy - Ponto20
+
+Scripts para fazer deploy da aplicação Ponto20 em servidor Ubuntu Server 24.04.
+
+## Pré-requisitos
+
+- Ubuntu Server 24.04
+- Acesso root ou sudo
+- Conexão com internet
+- (Opcional) Git instalado (será instalado automaticamente se não estiver)
+
+## Scripts Disponíveis
+
+### 1. deploy.sh
+
+Script principal de deploy que:
+
+- **Instala e configura PostgreSQL:**
+  - Instala PostgreSQL e extensões
+  - Configura senha do usuário `postgres`
+  - Cria banco de dados `ponto20`
+  - Configura acesso local (pg_hba.conf)
+- **Instala Node.js e dependências:**
+  - Instala Node.js 20 via NodeSource
+  - Instala PM2 para gerenciamento de processos
+- **Configura aplicação:**
+  - Clona o repositório do GitHub
+  - Instala dependências npm
+  - Cria arquivo `.env` com configurações (DATABASE_URL apontando para localhost)
+  - Executa migrações do banco de dados (drizzle-kit push)
+  - Executa build da aplicação
+  - Configura PM2 para gerenciar o processo
+- **Configura Nginx como proxy reverso:**
+  - Instala Nginx (se necessário)
+  - Cria configuração de proxy reverso
+  - Configura logs e timeouts
+  - Habilita site e recarrega Nginx
+
+**Uso:**
+
+```bash
+chmod +x scripts/deploy.sh
+sudo ./scripts/deploy.sh
+```
+
+### 2. setup-nginx.sh
+
+**NOTA:** Este script foi integrado ao `deploy.sh`. A configuração do Nginx agora é feita automaticamente durante o deploy.
+
+Se você precisar reconfigurar o Nginx manualmente, ainda pode usar este script:
+
+```bash
+chmod +x scripts/setup-nginx.sh
+sudo ./scripts/setup-nginx.sh
+```
+
+**IMPORTANTE:** Antes de executar, edite o script e altere a variável `DOMAIN` para seu domínio ou IP.
+
+## Configuração do .env
+
+O script `deploy.sh` cria automaticamente o arquivo `.env` com as seguintes configurações:
+
+```env
+DATABASE_URL="postgresql://postgres:adel1234@localhost:5432/ponto20"
+FACE_RECOGNITION_API_URL=http://localhost:8000
+BETTER_AUTH_SECRET="3L8AKwGUZa+VMTQc472p2FqT0UTyfNG8aBgAH+LfSMw="
+BETTER_AUTH_URL=http://localhost:3000
+RESEND_API_KEY=re_6TnyNasZ_Lo7uLBM4q3M3nqredToRUFSK
+RESEND_FROM_EMAIL=info@adelbr.tech
+SUPPORT_EMAIL=info@adelbr.tech
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+**Nota:** O `DATABASE_URL` é alterado de `192.168.15.47` para `localhost` conforme solicitado.
+
+## Passos Após o Deploy
+
+O script `deploy.sh` já executa automaticamente:
+
+- ✅ Instalação e configuração do PostgreSQL
+- ✅ Criação do banco de dados `ponto20`
+- ✅ Execução das migrações do banco de dados
+- ✅ Instalação e configuração do Nginx como proxy reverso
+
+**Ações manuais necessárias:**
+
+1. **Configurar Serviço de Reconhecimento Facial:**
+   - Certifique-se de que o serviço está rodando na porta 8000
+   - Ajuste `FACE_RECOGNITION_API_URL` no `.env` se necessário
+
+2. **Ajustar Variáveis de Ambiente (se necessário):**
+   - Edite `/var/www/ponto20/.env` conforme necessário
+   - Reinicie a aplicação: `pm2 restart ponto20`
+
+3. **Verificar Status dos Serviços:**
+
+   ```bash
+   # PostgreSQL
+   sudo systemctl status postgresql
+
+   # Nginx
+   sudo systemctl status nginx
+
+   # Aplicação
+   pm2 status
+   ```
+
+4. **Configurar Domínio (se necessário):**
+   - O script detecta automaticamente o IP do servidor
+   - Para usar um domínio específico, edite a variável `DOMAIN` no início do `deploy.sh`
+   - Ou edite manualmente: `/etc/nginx/sites-available/ponto20`
+
+## Gerenciamento com PM2
+
+```bash
+# Ver logs
+pm2 logs ponto20
+
+# Reiniciar aplicação
+pm2 restart ponto20
+
+# Parar aplicação
+pm2 stop ponto20
+
+# Ver status
+pm2 status
+
+# Ver informações detalhadas
+pm2 info ponto20
+```
+
+## Atualização da Aplicação
+
+Para atualizar a aplicação após mudanças no repositório:
+
+```bash
+cd /var/www/ponto20
+git pull origin main  # ou master
+npm ci --production=false
+npm run build
+pm2 restart ponto20
+```
+
+## Troubleshooting
+
+### Aplicação não inicia
+
+- Verifique os logs: `pm2 logs ponto20`
+- Verifique se o PostgreSQL está rodando: `sudo systemctl status postgresql`
+- Verifique se a porta 3000 está livre: `sudo netstat -tulpn | grep 3000`
+
+### Erro de conexão com banco de dados
+
+- Verifique se o PostgreSQL está rodando: `sudo systemctl status postgresql`
+- Verifique as credenciais no `.env`
+- Teste conexão manual: `psql -U postgres -d ponto20 -h localhost`
+- Verifique o arquivo `pg_hba.conf`: `/etc/postgresql/*/main/pg_hba.conf`
+- Verifique logs do PostgreSQL: `sudo tail -f /var/log/postgresql/postgresql-*-main.log`
+
+### Erro de build
+
+- Verifique se todas as dependências estão instaladas: `npm ci`
+- Verifique os logs de build para mais detalhes
+
+## Estrutura de Diretórios
+
+Após o deploy, a aplicação estará em:
+
+- `/var/www/ponto20` - Diretório da aplicação
+- `/etc/nginx/sites-available/ponto20` - Configuração do Nginx (se configurado)
+- `/var/log/nginx/ponto20-*.log` - Logs do Nginx
