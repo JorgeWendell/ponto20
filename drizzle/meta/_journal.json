@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1770147078197,
+      "tag": "0000_marcacoes-ponto",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770148690516,
+      "tag": "0001_gorgeous_grim_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770149624434,
+      "tag": "0002_flashy_rocket_raccoon",
+      "breakpoints": true
+    }
+  ]
+}

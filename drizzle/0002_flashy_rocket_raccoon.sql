@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "foto_facial_url" text;
