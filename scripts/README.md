@@ -56,6 +56,32 @@ sudo ./scripts/setup-nginx.sh
 
 **IMPORTANTE:** Antes de executar, edite o script e altere a variável `DOMAIN` para seu domínio ou IP.
 
+### 3. setup-https.sh
+
+Script para configurar HTTPS com Let's Encrypt (Certbot):
+
+- Instala Certbot e plugin do Nginx
+- Obtém certificado SSL gratuito do Let's Encrypt
+- Configura Nginx para usar HTTPS
+- Configura redirecionamento automático de HTTP para HTTPS
+- Configura renovação automática do certificado
+
+**Pré-requisitos:**
+
+- O script `deploy.sh` deve ter sido executado com sucesso
+- O domínio deve estar apontando para o IP do servidor (DNS configurado)
+- A porta 80 deve estar aberta no firewall
+- O Nginx deve estar rodando e respondendo
+
+**Uso:**
+
+```bash
+chmod +x scripts/setup-https.sh
+sudo ./scripts/setup-https.sh
+```
+
+**Nota:** O script usa o email `jorge.wendell@outlook.com` para notificações do Let's Encrypt. Para alterar, edite a variável `EMAIL` no início do script.
+
 ## Configuração do .env
 
 O script `deploy.sh` cria automaticamente o arquivo `.env` com as seguintes configurações:
@@ -105,9 +131,43 @@ O script `deploy.sh` já executa automaticamente:
    pm2 status
    ```
 
-4. **Configurar Domínio (se necessário):**
-   - O script detecta automaticamente o IP do servidor
-   - Para usar um domínio específico, edite a variável `DOMAIN` no início do `deploy.sh`
+4. **Configurar HTTPS (recomendado para produção):**
+
+   ```bash
+   chmod +x scripts/setup-https.sh
+   sudo ./scripts/setup-https.sh
+   ```
+
+   **Importante:** Após configurar HTTPS, atualize as variáveis no `.env`:
+
+   ```bash
+   cd /var/www/ponto20
+   nano .env
+   # Altere:
+   # BETTER_AUTH_URL=https://ponto.adelbr.tech
+   # NEXT_PUBLIC_BASE_URL=https://ponto.adelbr.tech
+   pm2 restart ponto20
+   ```
+
+5. **Verificar Status dos Serviços:**
+
+   ```bash
+   # PostgreSQL
+   sudo systemctl status postgresql
+
+   # Nginx
+   sudo systemctl status nginx
+
+   # Aplicação
+   pm2 status
+
+   # Certbot (renovação automática)
+   sudo systemctl status certbot.timer
+   ```
+
+6. **Configurar Domínio (se necessário):**
+   - O script usa `ponto.adelbr.tech` por padrão
+   - Para alterar, edite a variável `DOMAIN` no início dos scripts
    - Ou edite manualmente: `/etc/nginx/sites-available/ponto20`
 
 ## Gerenciamento com PM2
@@ -162,6 +222,21 @@ pm2 restart ponto20
 - Verifique se todas as dependências estão instaladas: `npm ci`
 - Verifique os logs de build para mais detalhes
 
+### Erro ao configurar HTTPS
+
+- Verifique se o DNS está configurado corretamente: `nslookup ponto.adelbr.tech`
+- Verifique se a porta 80 está aberta: `sudo ufw status` ou `sudo iptables -L`
+- Verifique se o Nginx está rodando: `sudo systemctl status nginx`
+- Verifique os logs do Certbot: `sudo journalctl -u certbot.service`
+- Teste acesso HTTP manualmente: `curl -I http://ponto.adelbr.tech`
+- Se o certificado expirar, renove manualmente: `sudo certbot renew`
+
+### Certificado SSL expirado
+
+- Renovar manualmente: `sudo certbot renew`
+- Verificar status: `sudo certbot certificates`
+- Verificar timer de renovação: `sudo systemctl status certbot.timer`
+
 ## Estrutura de Diretórios
 
 Após o deploy, a aplicação estará em:
@@ -169,3 +244,24 @@ Após o deploy, a aplicação estará em:
 - `/var/www/ponto20` - Diretório da aplicação
 - `/etc/nginx/sites-available/ponto20` - Configuração do Nginx (se configurado)
 - `/var/log/nginx/ponto20-*.log` - Logs do Nginx
+- `/etc/letsencrypt/live/ponto.adelbr.tech/` - Certificados SSL (se HTTPS configurado)
+
+## Gerenciamento de Certificados SSL
+
+```bash
+# Ver certificados instalados
+sudo certbot certificates
+
+# Renovar certificado manualmente
+sudo certbot renew
+
+# Testar renovação (dry-run)
+sudo certbot renew --dry-run
+
+# Ver logs do Certbot
+sudo journalctl -u certbot.service
+sudo journalctl -u certbot.timer
+
+# Verificar status do timer de renovação
+sudo systemctl status certbot.timer
+```
