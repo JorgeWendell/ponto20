@@ -70,6 +70,14 @@ if ! command -v python3 >/dev/null 2>&1; then
     apt-get install -y python3 python3-pip python3-venv
 fi
 
+# Verificar e instalar python3-venv específico da versão se necessário
+PYTHON_VERSION=$(python3 --version | grep -oP '\d+\.\d+' | head -1)
+if ! dpkg -l | grep -q "python${PYTHON_VERSION}-venv"; then
+    echo -e "${YELLOW}Instalando python${PYTHON_VERSION}-venv...${NC}"
+    apt-get update -qq
+    apt-get install -y "python${PYTHON_VERSION}-venv" || apt-get install -y python3-venv
+fi
+
 # Criar ambiente virtual se não existir
 if [ ! -d "venv" ]; then
     echo -e "${YELLOW}Criando ambiente virtual Python...${NC}"

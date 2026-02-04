@@ -44,6 +44,14 @@ else
     echo -e "${GREEN}[2/6] Python 3 já está instalado: $(python3 --version)${NC}"
 fi
 
+# Verificar e instalar python3-venv se necessário
+PYTHON_VERSION=$(python3 --version | grep -oP '\d+\.\d+' | head -1)
+if ! dpkg -l | grep -q "python${PYTHON_VERSION}-venv"; then
+    echo -e "${YELLOW}Instalando python${PYTHON_VERSION}-venv...${NC}"
+    apt-get update -qq
+    apt-get install -y "python${PYTHON_VERSION}-venv" || apt-get install -y python3-venv
+fi
+
 # Remover ambiente virtual antigo se existir e estiver corrompido
 if [ -d "venv" ] && [ ! -f "venv/bin/uvicorn" ]; then
     echo -e "${YELLOW}[3/6] Removendo ambiente virtual corrompido...${NC}"
